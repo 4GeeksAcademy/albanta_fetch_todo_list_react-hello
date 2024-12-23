@@ -1,111 +1,120 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
+
+
+const getTodos = async () => {
+  const response = await fetch('https://playground.4geeks.com/todo/users/Albanta', { method: 'GET' });
+  if (!response.ok){
+    crearAlbanta()
+  }
+  else {
+    const { todos } = await response.json();
+    return todos;
+  } 
+};
+
+
+const addTodo = async (label) => {
+  const response = await fetch('https://playground.4geeks.com/todo/todos/Albanta', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ is_done: false, label }),
+  });
+  const todo = await response.json();
+  return todo;
+};
+
+
+const deleteTodo = async (id) => {
+  await fetch(`https://playground.4geeks.com/todo/todos/${id}`, {
+    method: 'DELETE',
+  });
+};
+
+const crearAlbanta = async () => {
+  const response = await fetch('https://playground.4geeks.com/todo/users/Albanta', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  const data = await response.json();
+  if (data) {
+    const todoList = await getTodos();
+    setTasks(todoList);
+  }
+};
 
 const Home = () => {
   const [tasks, setTasks] = useState([]);
   const [inputValue, setInputValue] = useState("");
 
-  const API_URL = "https://playground.4geeks.com/todo/user/yourusername";
-
-
   useEffect(() => {
-    fetch(API_URL)
-      .then((resp) => {
-        if (!resp.ok) {
-          
-          return fetch(API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify([]),
-          });
-        }
-        return resp.json();
-      })
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setTasks(data);
-        }
-      })
-      .catch((error) => console.error("Error al cargar tareas:", error));
+    actualizarLista();
   }, []);
 
-  
-  const updateTasksInAPI = (newTasks) => {
-    fetch(API_URL, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newTasks),
-    })
-      .then((resp) => {
-        if (resp.ok) {
-          setTasks(newTasks);
-        } else {
-          console.error("Error al actualizar tareas:", resp.statusText);
-        }
-      })
-      .catch((error) => console.error("Error en la conexión:", error));
+ 
+  const actualizarLista = async () => {
+    const todoList = await getTodos();
+    setTasks(todoList);
   };
 
   
-  const addTask = (e) => {
+  const addTask = async (e) => {
     if (e.key === "Enter" && inputValue.trim() !== "") {
-      const newTasks = [...tasks, { label: inputValue, done: false }];
-      setTasks(newTasks); 
-      updateTasksInAPI(newTasks); 
+      const newTask = await addTodo(inputValue);
+      setTasks([...tasks, newTask]);
       setInputValue(""); 
     }
   };
 
-  
-  const deleteTask = (index) => {
-    const newTasks = tasks.filter((_, i) => i !== index);
-    setTasks(newTasks); 
-    updateTasksInAPI(newTasks); 
+ 
+  const deleteTask = async (id) => {
+    await deleteTodo(id);
+    const newTasks = tasks.filter((task) => task.id !== id);
+    setTasks(newTasks);
   };
 
   
-  const clearAllTasks = () => {
-    
-    const clearedTasks = [];
-    setTasks(clearedTasks); 
-    updateTasksInAPI(clearedTasks); 
+  const clearAllTasks = async () => {
+    for (const task of tasks) {
+      await deleteTodo(task.id);
+    }
+    setTasks([]);
   };
 
   return (
-    <div className="home-container">
-      <h1>MI LISTA</h1>
-      <input
-        type="text"
-        placeholder="Añadir tarea..."
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={addTask}
-      />
-      <div className="task-list">
-        {tasks.length > 0 ? (
-          <ul>
-            {tasks.map((task, index) => (
-              <li key={index} className="task-item">
-                <span>{task.label}</span>
-                <button onClick={() => deleteTask(index)}>X</button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No hay tareas, añade tareas aquí</p>
-        )}
-      </div>
-      <button className="clear-btn" onClick={clearAllTasks}>
-        Limpiar todas las tareas
-      </button>
-      <div className="landscape">
-        <img
-          src="https://images.unsplash.com/photo-1526336024174-e58f5cdd8e13?fit=crop&w=800&q=80"
-          alt="Paisaje bonito"
+    <div className="container">
+      <h1 className="title">LISTA DE TAREAS</h1>
+      <div className="task-input">
+        <input
+          type="text"
+          placeholder="Añadir nueva tarea..."
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={addTask}
         />
       </div>
+      <ul className="task-list">
+        {tasks.length === 0 ? (
+          <li className="empty-message">Añade tareas aquí</li>
+        ) : (
+          tasks.map((task) => (
+            <li key={task.id} className="task-item">
+              <span>{task.label}</span>
+              <button className="delete-btn" onClick={() => deleteTask(task.id)}>
+                ❌
+              </button>
+            </li>
+          ))
+        )}
+      </ul>
+      <button className="clear-btn" onClick={clearAllTasks}>
+        Eliminar todas las tareas
+      </button>
     </div>
   );
 };
 
 export default Home;
-
